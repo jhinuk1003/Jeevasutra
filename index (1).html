@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Records DApp</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/4.0.1/web3.min.js"></script>
+    <!-- Previous CSS styles remain the same -->
+    <style>
+        /* Previous CSS remains the same */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .wallet-status {
+            background-color: #e8f5e9;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+        }
+
+        .section h2 {
+            color: #34495e;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .record-item {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+
+        .approval-status {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .status-indicator {
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
+        .approved {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .pending {
+            background-color: #f1c40f;
+            color: white;
+        }
+
+        .transaction-status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .loading {
+            display: inline-block;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="wallet-status" id="walletStatus">
+            Not connected to wallet
+        </div>
+
+        <h1>Medical Records DApp</h1>
+
+        <div class="section">
+            <h2>Your Address</h2>
+            <div class="form-group">
+                <input type="text" id="displayAddress" value="0xad2eCa0a1B507E29FaC7859FE08be0Be3d27EcC9" readonly>
+            </div>
+        </div>
+
+        <!-- Previous HTML sections remain the same -->
+        <div class="section">
+            <h2>Assign Role</h2>
+            <div class="form-group">
+                <label for="userAddress">User Address:</label>
+                <input type="text" id="userAddress" placeholder="0x...">
+                
+                <label for="role">Role:</label>
+                <select id="role">
+                    <option value="1">Doctor</option>
+                    <option value="2">Patient</option>
+                    <option value="3">Insurance</option>
+                </select>
+                
+                <button onclick="assignRole()">Assign Role</button>
+                <div id="assignRoleStatus" class="transaction-status"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Add Medical Record</h2>
+            <div class="form-group">
+                <label for="patientAddress">Patient Address:</label>
+                <input type="text" id="patientAddress" placeholder="0x...">
+                
+                <label for="recordData">Record Data:</label>
+                <input type="text" id="recordData" placeholder="Enter medical record data">
+                
+                <button onclick="addRecord()">Add Record</button>
+                <div id="addRecordStatus" class="transaction-status"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>View Records</h2>
+            <div class="form-group">
+                <label for="viewAddress">Patient Address:</label>
+                <input type="text" id="viewAddress" placeholder="0x...">
+                
+                <button onclick="viewRecords()">View Records</button>
+            </div>
+            
+            <div class="records-list" id="recordsList">
+                <!-- Records will be dynamically added here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Previous contract ABI remains the same
+        const contractABI = [{"inputs":[{"internalType":"address","name":"_user","type":"address"},{"internalType":"string","name":"_data","type":"string"}],"name":"addRecord","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_user","type":"address"},{"internalType":"uint256","name":"_index","type":"uint256"}],"name":"approveRecord","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_user","type":"address"},{"internalType":"enum MedicalRecords.Role","name":"_role","type":"uint8"}],"name":"assignRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"string","name":"data","type":"string"}],"name":"RecordAdded","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"index","type":"uint256"}],"name":"RecordRevoked","type":"event"},{"inputs":[{"internalType":"address","name":"_user","type":"address"},{"internalType":"uint256","name":"_index","type":"uint256"}],"name":"revokeRecord","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_user","type":"address"}],"name":"getRecords","outputs":[{"components":[{"internalType":"string","name":"data","type":"string"},{"internalType":"bool","name":"doctorApproval","type":"bool"},{"internalType":"bool","name":"patientApproval","type":"bool"},{"internalType":"bool","name":"insuranceApproval","type":"bool"}],"internalType":"struct MedicalRecords.Record[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"records","outputs":[{"internalType":"string","name":"data","type":"string"},{"internalType":"bool","name":"doctorApproval","type":"bool"},{"internalType":"bool","name":"patientApproval","type":"bool"},{"internalType":"bool","name":"insuranceApproval","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"roles","outputs":[{"internalType":"enum MedicalRecords.Role","name":"","type":"uint8"}],"stateMutability":"view","type":"function"}];
+
+        // Updated contract address with your address
+        const contractAddress = '0xad2eCa0a1B507E29FaC7859FE08be0Be3d27EcC9';
+
+        let web3;
+        let contract;
+        let userAccount;
+
+        // Initialize Web3
+        async function init() {
+            try {
+                if (typeof window.ethereum !== 'undefined') {
+                    web3 = new Web3(window.ethereum);
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    userAccount = accounts[0];
+                    contract = new web3.eth.Contract(contractABI, contractAddress);
+                    
+                    document.getElementById('walletStatus').innerHTML = 
+                        `Connected: ${userAccount.substring(0, 6)}...${userAccount.substring(38)}`;
+
+                    // Set the initial address in the view records field
+                    document.getElementById('viewAddress').value = userAccount;
+
+                    window.ethereum.on('accountsChanged', function (accounts) {
+                        userAccount = accounts[0];
+                        document.getElementById('walletStatus').innerHTML = 
+                            `Connected: ${userAccount.substring(0, 6)}...${userAccount.substring(38)}`;
+                    });
+
+                    // Load initial records
+                    viewRecords();
+                } else {
+                    alert('Please install MetaMask to use this dApp!');
+                }
+            } catch (error) {
+                console.error('Error initializing Web3:', error);
+                alert('Error connecting to MetaMask: ' + error.message);
+            }
+        }
+
+        // Previous function implementations with added error handling
+        async function assignRole() {
+            if (!contract) {
+                alert('Please connect to MetaMask first!');
+                return;
+            }
+
+            const address = document.getElementById('userAddress').value;
+            const role = document.getElementById('role').value;
+            const statusDiv = document.getElementById('assignRoleStatus');
+
+            try {
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = 'Processing...';
+                
+                await contract.methods.assignRole(address, role).send({ from: userAccount });
+                
+                statusDiv.style.backgroundColor = '#e8f5e9';
+                statusDiv.innerHTML = 'Role assigned successfully!';
+            } catch (error) {
+                console.error('Error assigning role:', error);
+                statusDiv.style.backgroundColor = '#ffebee';
+                statusDiv.innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        async function addRecord() {
+            if (!contract) {
+                alert('Please connect to MetaMask first!');
+                return;
+            }
+
+            const address = document.getElementById('patientAddress').value;
+            const data = document.getElementById('recordData').value;
+            const statusDiv = document.getElementById('addRecordStatus');
+
+            try {
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = 'Processing...';
+                
+                await contract.methods.addRecord(address, data).send({ from: userAccount });
+                
+                statusDiv.style.backgroundColor = '#e8f5e9';
+                statusDiv.innerHTML = 'Record added successfully!';
+                
+                // Clear the form
+                document.getElementById('recordData').value = '';
+                
+                // Refresh the records display
+                viewRecords();
+            } catch (error) {
+                console.error('Error adding record:', error);
+                statusDiv.style.backgroundColor = '#ffebee';
+                statusDiv.innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        async function viewRecords() {
+            if (!contract) {
+                alert('Please connect to MetaMask first!');
+                return;
+            }
+
+            const address = document.getElementById('viewAddress').value;
+            const recordsList = document.getElementById('recordsList');
+
+            try {
+                recordsList.innerHTML = 'Loading records...';
+                const records = await contract.methods.getRecords(address).call();
+                
+                if (records.length === 0) {
+                    recordsList.innerHTML = 'No records found for this address.';
+                    return;
+                }
+
+                recordsList.innerHTML = '';
+                records.forEach((record, index) => {
+                    const recordElement = document.createElement('div');
+                    recordElement.className = 'record-item';
+                    recordElement.innerHTML = `
+                        <h3>Record #${index}</h3>
+                        <p>Data: ${record.data}</p>
+                        <div class="approval-status">
+                            <span class="status-indicator ${record.doctorApproval ? 'approved' : 'pending'}">
+                                Doctor: ${record.doctorApproval ? 'Approved' : 'Pending'}
+                            </span>
+                            <span class="status-indicator ${record.patientApproval ? 'approved' : 'pending'}">
+                                Patient: ${record.patientApproval ? 'Approved' : 'Pending'}
+                            </span>
+                            <span class="status-indicator ${record.insuranceApproval ? 'approved' : 'pending'}">
+                                Insurance: ${record.insuranceApproval ? 'Approved' : 'Pending'}
+                            </span>
+                        </div>
+                    `;
+                    recordsList.appendChild(recordElement);
+                });
+            } catch (error) {
+                console.error('Error viewing records:', error);
+                recordsList.innerHTML = 'Error loading records: ' + error.message;
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
